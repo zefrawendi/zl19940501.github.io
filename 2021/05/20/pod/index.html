@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"example.com","root":"/","scheme":"Pisces","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="Namespace – 命令空间实现同一集群上的资源隔离 Pod – K8s的最小运行单元">
+<meta property="og:type" content="article">
+<meta property="og:title" content="pod">
+<meta property="og:url" content="http://example.com/2021/05/20/pod/index.html">
+<meta property="og:site_name" content="Stone">
+<meta property="og:description" content="Namespace – 命令空间实现同一集群上的资源隔离 Pod – K8s的最小运行单元">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2021-05-20T07:57:09.000Z">
+<meta property="article:modified_time" content="2021-05-21T02:43:39.356Z">
+<meta property="article:author" content="fps30">
+<meta property="article:tag" content="k8s">
+<meta property="article:tag" content="容器">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://example.com/2021/05/20/pod/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>pod | Stone</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Stone</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2021/05/20/pod/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="fps30">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Stone">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          pod
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2021-05-20 15:57:09" itemprop="dateCreated datePublished" datetime="2021-05-20T15:57:09+08:00">2021-05-20</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2021-05-21 10:43:39" itemprop="dateModified" datetime="2021-05-21T10:43:39+08:00">2021-05-21</time>
+              </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/%E5%AE%B9%E5%99%A8%E4%BA%91/" itemprop="url" rel="index"><span itemprop="name">容器云</span></a>
+                </span>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <ul>
+<li>Namespace – 命令空间实现同一集群上的资源隔离</li>
+<li>Pod – K8s的最小运行单元<span id="more"></span></li>
+<li>ReplicaSet – 实现pod平滑迭代更新及回滚用，这个不需要我们实际操作</li>
+<li>Deployment – 用来发布无状态应用</li>
+<li>Health Check – Readiness/Liveness/maxSurge/maxUnavailable 服务健康状态检测</li>
+<li>Service, Endpoint – 实现同一lables下的多个pod流量负载均衡</li>
+<li>Labels – 标签，服务间选择访问的重要依据</li>
+<li>Ingress – K8s的流量入口</li>
+<li>DaemonSet – 用来发布守护应用，例如我们部署的CNI插件</li>
+<li>HPA – Horizontal Pod Autoscaling 自动水平伸缩</li>
+<li>Volume – 存储卷</li>
+<li>Pv, pvc, StorageClass – 持久化存储，持久化存储 声明，动态存储pv</li>
+<li>StatefulSet – 用来发布有状态应用</li>
+<li>Job, CronJob – 一次性任务及定时任务</li>
+<li>Configmap, serect – 服务配置及服务加密配置</li>
+<li>Kube-proxy – 提供service服务流量转发的功能支持，这个不需要我们实际操作</li>
+<li>RBAC, serviceAccount, role, rolebindings, clusterrole, clusterrolebindings – 基于角色的访问控制</li>
+<li>Events – K8s事件流，可以用来监控相关事件用，这个不需要我们实际操作</li>
+</ul>
+<p>看了上面这一堆知识点，大家是不是有点头晕了？ 别担心，上述这些小怪在后面的过关流程中均会一一遇到，并且我会也教会大家怎么去战胜它们，Let’ Go!</p>
+<p>OK，此关卡较长，这节课我们先会会Namespace和Pod这两个小怪</p>
+<h1 id="Namespace"><a href="#Namespace" class="headerlink" title="Namespace"></a><strong>Namespace</strong></h1><p>namespace命令空间，后面简称ns。在K8s上面，大部分资源都受ns的限制，来做资源的隔离，少部分如pv，clusterRole等不受ns控制，这个后面会讲到。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line"># 查看目前集群上有哪些ns</span><br><span class="line"># kubectl get ns</span><br><span class="line">NAME              STATUS        AGE</span><br><span class="line">default           Active        5d3h</span><br><span class="line">kube-node-lease   Active        5d3h</span><br><span class="line">kube-public       Active        5d3h</span><br><span class="line">kube-system       Active        5d3h</span><br><span class="line"></span><br><span class="line"># 通过kubectl 接上 -n namespaceName 来查看对应ns上面的资源信息</span><br><span class="line"># kubectl -n kube-system get pod</span><br><span class="line">NAME                                       READY   STATUS    RESTARTS   AGE</span><br><span class="line">calico-kube-controllers-7fdc86d8ff-2mcm9   1/1     Running   1          29h</span><br><span class="line">calico-node-dlt57                          1/1     Running   1          29h</span><br><span class="line">calico-node-tvzqj                          1/1     Running   1          29h</span><br><span class="line">calico-node-vh6sk                          1/1     Running   1          29h</span><br><span class="line">calico-node-wpsfh                          1/1     Running   1          29h</span><br><span class="line">coredns-d9b6857b5-tt7j2                    1/1     Running   1          29h</span><br><span class="line">metrics-server-869ffc99cd-n2dc4            1/1     Running   2          29h</span><br><span class="line">nfs-provisioner-01-77549d5487-dbmv5        1/1     Running   2          29h</span><br><span class="line"></span><br><span class="line"># 我们通过不接-n 的情况下，都是在默认命令空间default下进行操作，在生产中，通过测试一些资源就在这里进行</span><br><span class="line">[root@node-1 ~]# kubectl get pod</span><br><span class="line">NAME                     READY   STATUS    RESTARTS   AGE</span><br><span class="line">nginx-867c95f465-njv78   1/1     Running   0          12m</span><br><span class="line">[root@node-1 ~]# kubectl -n default get pod</span><br><span class="line">NAME                     READY   STATUS    RESTARTS   AGE</span><br><span class="line">nginx-867c95f465-njv78   1/1     Running   0          12m</span><br><span class="line"></span><br><span class="line"># 创建也很简单</span><br><span class="line">[root@node-1 ~]# kubectl create ns test</span><br><span class="line">namespace/test created</span><br><span class="line">[root@node-1 ~]# kubectl get ns|grep test</span><br><span class="line">test  </span><br><span class="line"></span><br><span class="line"># 删除ns</span><br><span class="line"># kubectl delete ns test </span><br><span class="line">namespace &quot;test&quot; deleted</span><br></pre></td></tr></table></figure>
+
+<p>生产中的小技巧：k8s删除namespaces状态一直为terminating问题处理</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br></pre></td><td class="code"><pre><span class="line"># kubectl get ns</span><br><span class="line">NAME              STATUS        AGE</span><br><span class="line">default           Active        5d4h</span><br><span class="line">ingress-nginx     Active        30h</span><br><span class="line">kube-node-lease   Active        5d4h</span><br><span class="line">kube-public       Active        5d4h</span><br><span class="line">kube-system       Active        5d4h</span><br><span class="line">kubevirt          Terminating   2d2h   # &lt;------ here</span><br><span class="line"></span><br><span class="line">1、新开一个窗口运行命令  kubectl proxy</span><br><span class="line">&gt; 此命令启动了一个代理服务来接收来自你本机的HTTP连接并转发至API服务器，同时处理身份认证</span><br><span class="line"></span><br><span class="line">2、新开一个终端窗口，将下面shell脚本整理到文本内`1.sh`并执行，$1参数即为删除不了的ns名称</span><br><span class="line">#------------------------------------------------------------------------------------</span><br><span class="line">#!/bin/bash</span><br><span class="line"></span><br><span class="line">set -eo pipefail</span><br><span class="line"></span><br><span class="line">die() &#123; echo &quot;$*&quot; 1&gt;&amp;2 ; exit 1; &#125;</span><br><span class="line"></span><br><span class="line">need() &#123;</span><br><span class="line">        which &quot;$1&quot; &amp;&gt;/dev/null || die &quot;Binary &#x27;$1&#x27; is missing but required&quot;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"># checking pre-reqs</span><br><span class="line"></span><br><span class="line">need &quot;jq&quot;</span><br><span class="line">need &quot;curl&quot;</span><br><span class="line">need &quot;kubectl&quot;</span><br><span class="line"></span><br><span class="line">PROJECT=&quot;$1&quot;</span><br><span class="line">shift</span><br><span class="line"></span><br><span class="line">test -n &quot;$PROJECT&quot; || die &quot;Missing arguments: kill-ns &lt;namespace&gt;&quot;</span><br><span class="line"></span><br><span class="line">kubectl proxy &amp;&gt;/dev/null &amp;</span><br><span class="line">PROXY_PID=$!</span><br><span class="line">killproxy () &#123;</span><br><span class="line">        kill $PROXY_PID</span><br><span class="line">&#125;</span><br><span class="line">trap killproxy EXIT</span><br><span class="line"></span><br><span class="line">sleep 1 # give the proxy a second</span><br><span class="line"></span><br><span class="line">kubectl get namespace &quot;$PROJECT&quot; -o json | jq &#x27;del(.spec.finalizers[] | select(&quot;kubernetes&quot;))&#x27; | curl -s -k -H &quot;Content-Type: application/json&quot; -X PUT -o /dev/null --data-binary @- http://localhost:8001/api/v1/namespaces/$PROJECT/finalize &amp;&amp; echo &quot;Killed namespace: $PROJECT&quot;</span><br><span class="line">#------------------------------------------------------------------------------------</span><br><span class="line"></span><br><span class="line">3. 执行脚本删除</span><br><span class="line"># bash 1.sh kubevirt</span><br><span class="line">Killed namespace: kubevirt</span><br><span class="line">1.sh: line 23: kill: (9098) - No such process</span><br><span class="line"></span><br><span class="line">5、查看结果</span><br><span class="line"># kubectl get ns    </span><br><span class="line">NAME              STATUS   AGE</span><br><span class="line">default           Active   5d4h</span><br><span class="line">ingress-nginx     Active   30h</span><br><span class="line">kube-node-lease   Active   5d4h</span><br><span class="line">kube-public       Active   5d4h</span><br><span class="line">kube-system       Active   5d4h</span><br></pre></td></tr></table></figure>
+
+<h1 id="Pod"><a href="#Pod" class="headerlink" title="Pod"></a><strong>Pod</strong></h1><blockquote>
+<p>开篇先来个加人头秘籍（上上下下左右左右BABA，知道这个游戏的朋友请举个手^0^）</p>
+<p>kubectl作为管理K8s的重要cli命令行工具，运维人员必须掌握它，但里面这么多的子命令，记不住怎么办？这里就以创建pod举例</p>
+</blockquote>
+<p>擅用-h 帮助参数</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br></pre></td><td class="code"><pre><span class="line"># 在新版本的K8s中，明确了相关命令就是用来创建对应资源的，不再像老版本那样混合使用，这个不是重点，创建pod，我们用kubectl run -h，来查看命令帮助，是不是豁然开朗</span><br><span class="line"># kubectl run -h</span><br><span class="line">Create and run a particular image in a pod.</span><br><span class="line"></span><br><span class="line">Examples:</span><br><span class="line">  # Start a nginx pod.</span><br><span class="line">  kubectl run nginx --image=nginx</span><br><span class="line">  ......</span><br><span class="line"></span><br><span class="line"># 我们就用示例给出的第一个示例，来创建一个nginx的pod</span><br><span class="line"># kubectl run nginx --image=nginx</span><br><span class="line">pod/nginx created</span><br><span class="line"></span><br><span class="line"># 等待镜像下载完成后，pod就会正常running了（这里介绍两个实用参数 -w代表持久监听当前namespace下的指定资源的变化；-o wide代表列出更为详细的信息，比如这里pod运行的node节点显示）</span><br><span class="line"># 注： READY下面的含义是后面数字1代表这个pod里面期望的容器数量，前面的数字1代表服务正常运行就绪的容器数量</span><br><span class="line"># kubectl  get pod -w -o wide</span><br><span class="line">NAME                    READY   STATUS    RESTARTS   AGE     IP              NODE         NOMINATED NODE   READINESS GATES</span><br><span class="line">nginx                   1/1     Running   0          2m35s   172.20.139.67   10.0.1.203   &lt;none&gt;           &lt;none&gt;</span><br><span class="line"></span><br><span class="line"># 我们来请求下这个pod的IP</span><br><span class="line"># curl 172.20.139.67</span><br><span class="line">&lt;!DOCTYPE html&gt;</span><br><span class="line">&lt;html&gt;</span><br><span class="line">&lt;head&gt;</span><br><span class="line">&lt;title&gt;Welcome to nginx!&lt;/title&gt;</span><br><span class="line">......</span><br><span class="line"></span><br><span class="line"># 我们进到这个pod服务内，修改下页面信息看看，这里会学到exec子命令，-it代表保持tty连接，不会一连上pod就断开了</span><br><span class="line"># kubectl -it exec nginx -- sh</span><br><span class="line"># echo &#x27;hello, world!&#x27; &gt; /usr/share/nginx/html/index.html</span><br><span class="line"># exit</span><br><span class="line"></span><br><span class="line"># curl 172.20.139.67</span><br><span class="line">hello, world!</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"># 我们来详细分析的这个pod启动的整个流程，这里会用到kubectl的子命令 describe，它是用来描述后面所接资源的详细信息的，划重点，这个命令对于我们生产中排查K8s的问题尤其重要</span><br><span class="line"># kubectl  describe pod nginx   # 这里显示内容较多，目前我只把当前关键的信息列出来</span><br><span class="line"></span><br><span class="line">Name:         nginx</span><br><span class="line">Namespace:    default</span><br><span class="line">Priority:     0</span><br><span class="line">Node:         10.0.1.203/10.0.1.203</span><br><span class="line">Start Time:   Tue, 24 Nov 2020 14:23:56 +0800</span><br><span class="line">Labels:       run=nginx</span><br><span class="line">Annotations:  &lt;none&gt;</span><br><span class="line">Status:       Running</span><br><span class="line">IP:           172.20.139.67</span><br><span class="line">IPs:</span><br><span class="line">  IP:  172.20.139.67</span><br><span class="line">Containers:</span><br><span class="line">  nginx:</span><br><span class="line">    Container ID:   docker://2578019be269d7b1ad02ab4dd0a8b883e79fc491ae9c5db6164120f3e1dde8c7</span><br><span class="line">    Image:          nginx</span><br><span class="line">    Image ID:       docker-pullable://nginx@sha256:c3a1592d2b6d275bef4087573355827b200b00ffc2d9849890a4f3aa2128c4ae</span><br><span class="line">    Port:           &lt;none&gt;</span><br><span class="line">    Host Port:      &lt;none&gt;</span><br><span class="line">    State:          Running</span><br><span class="line">......中间内容省略</span><br><span class="line">Events:</span><br><span class="line">  Type    Reason     Age    From               Message</span><br><span class="line">  ----    ------     ----   ----               -------</span><br><span class="line">  Normal  Scheduled  5m41s  default-scheduler  Successfully assigned default/nginx to 10.0.1.203</span><br><span class="line">  Normal  Pulling    5m40s  kubelet            Pulling image &quot;nginx&quot;</span><br><span class="line">  Normal  Pulled     5m25s  kubelet            Successfully pulled image &quot;nginx&quot;</span><br><span class="line">  Normal  Created    5m25s  kubelet            Created container nginx</span><br><span class="line">  Normal  Started    5m25s  kubelet            Started container nginx</span><br><span class="line">  </span><br><span class="line"> # 重点分析下最后面的Events事件链</span><br><span class="line">1. kubectl 发送部署pod的请求到 API Server</span><br><span class="line">2. API Server 通知 Controller Manager 创建一个 pod 资源</span><br><span class="line">3. Scheduler 执行调度任务，Events的第一条打印信息就明确显示了这个pod被调度到10.0.1.203这个node节点上运行，接着开始拉取相应容器镜像，拉取完成后开始创建nginx服务，至到最后服务创建完成，在有时候服务报错的时候，这里也会显示相应详细的报错信息</span><br></pre></td></tr></table></figure>
+
+<p>但我们在生产中是不建议直接用来创建pod，先直接演示下：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"># 我们删除掉这个nginx的pod</span><br><span class="line"># kubectl delete pod nginx</span><br><span class="line">pod &quot;nginx&quot; deleted</span><br><span class="line"></span><br><span class="line"># kubectl get pod</span><br><span class="line">现在已经看不到这个pod了，假设这里是我们运行的一个服务，而恰好运行这个pod的这台node当机了，那么这个服务就没了，它不会自动飘移到其他node上去，也就发挥不了K8s最重要的保持期待的服务特性了。</span><br></pre></td></tr></table></figure>
+
+<p>小技巧之列出镜像的相关tag，方便进行镜像tag版本选择：</p>
+<blockquote>
+<p>这个脚本是从二进制安装K8S那个项目里面提取的一个小脚本，因为用来查docker镜像版本很方便，所以在这里分享给大家</p>
+</blockquote>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br></pre></td><td class="code"><pre><span class="line"># cat /opt/kube/bin/docker-tag        </span><br><span class="line">#!/bin/bash</span><br><span class="line">#</span><br><span class="line"></span><br><span class="line">MTAG=$2</span><br><span class="line">CONTAIN=$3</span><br><span class="line"></span><br><span class="line">function usage() &#123;</span><br><span class="line">cat &lt;&lt; HELP</span><br><span class="line"></span><br><span class="line">docker-tag  --  list all tags for a Docker image on a remote registry</span><br><span class="line"></span><br><span class="line">EXAMPLe:</span><br><span class="line">    - list all tags for nginx:</span><br><span class="line">       docker-tag tags nginx</span><br><span class="line"></span><br><span class="line">    - list all nginx tags containing alpine:</span><br><span class="line">       docker-tag tags nginx alpine</span><br><span class="line"></span><br><span class="line">HELP</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">if [ $# -lt 1 ]; then</span><br><span class="line">        usage</span><br><span class="line">        exit 2</span><br><span class="line">fi</span><br><span class="line"></span><br><span class="line">function tags() &#123;</span><br><span class="line">    TAGS=$(curl -ksL https://registry.hub.docker.com/v1/repositories/$&#123;MTAG&#125;/tags | sed -e &#x27;s/[][]//g&#x27; -e &#x27;s/&quot;//g&#x27; -e &#x27;s/ //g&#x27; | tr &#x27;&#125;&#x27; &#x27;\n&#x27;  | awk -e: &#x27;&#123;print $3&#125;&#x27;)</span><br><span class="line">    if [ &quot;$&#123;CONTAIN&#125;&quot; != &quot;&quot; ]; then</span><br><span class="line">        echo -e $(echo &quot;$&#123;TAGS&#125;&quot; | grep &quot;$&#123;CONTAIN&#125;&quot;) | tr &#x27; &#x27; &#x27;\n&#x27;</span><br><span class="line">    else</span><br><span class="line">        echo &quot;$&#123;TAGS&#125;&quot;</span><br><span class="line">    fi</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">case $1 in</span><br><span class="line">    tags)</span><br><span class="line">        tags</span><br><span class="line">        ;;</span><br><span class="line">    *)</span><br><span class="line">        usage</span><br><span class="line">        ;;</span><br><span class="line">esac</span><br></pre></td></tr></table></figure>
+
+<p>显示结果如下：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"># docker-tag tags nginx        </span><br><span class="line">latest</span><br><span class="line">1</span><br><span class="line">1-alpine</span><br><span class="line">1-alpine-perl</span><br><span class="line">1-perl</span><br><span class="line">1.10</span><br><span class="line">1.10-alpine</span><br></pre></td></tr></table></figure>
+
+<p>pod小怪战斗（作业）</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"># 试着创建一个redis服务的pod，并且使用exec进入这个pod，通过客户端命令redis-cli连接到redis-server ，插入一个key a ,value 为666，最后删除这个redis的pod</span><br><span class="line">root@redis:/data# redis-cli </span><br><span class="line">127.0.0.1:6379&gt; get a</span><br><span class="line">(nil)</span><br><span class="line">127.0.0.1:6379&gt; set a 666</span><br><span class="line">OK</span><br><span class="line">127.0.0.1:6379&gt; get a</span><br><span class="line">&quot;666&quot;</span><br></pre></td></tr></table></figure>
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/k8s/" rel="tag"># k8s</a>
+              <a href="/tags/%E5%AE%B9%E5%99%A8/" rel="tag"># 容器</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2021/05/20/demo/" rel="prev" title="杀死一只知更鸟观后感">
+      <i class="fa fa-chevron-left"></i> 杀死一只知更鸟观后感
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#Namespace"><span class="nav-number">1.</span> <span class="nav-text">Namespace</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#Pod"><span class="nav-number">2.</span> <span class="nav-text">Pod</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">fps30</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">3</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">2</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">4</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2021</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">fps30</span>
+</div>
+  <div class="powered-by">o(=•ェ•=)m 🐱
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>
