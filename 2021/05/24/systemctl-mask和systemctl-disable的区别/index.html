@@ -20,30 +20,33 @@
     var CONFIG = {"hostname":"example.com","root":"/","scheme":"Pisces","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":"default"},"back2top":{"enable":true,"sidebar":false,"scrollpercent":true},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
   </script>
 
-  <meta name="description" content="备忘~">
-<meta property="og:type" content="website">
-<meta property="og:title" content="Lei&#39;s Blog">
-<meta property="og:url" content="http://example.com/index.html">
+  <meta name="description" content="systemctl mask和systemctl disable的区别一般很难注意到，因为大部分时候只会使用systemctl disable，并不会用到systemctl mask。总体来看，disable和enable是一对操作，是用来启动、停止服务。mask和unmask是一对操作，用来屏蔽和取消屏蔽服务。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="systemctl mask和systemctl disable的区别">
+<meta property="og:url" content="http://example.com/2021/05/24/systemctl-mask%E5%92%8Csystemctl-disable%E7%9A%84%E5%8C%BA%E5%88%AB/index.html">
 <meta property="og:site_name" content="Lei&#39;s Blog">
-<meta property="og:description" content="备忘~">
+<meta property="og:description" content="systemctl mask和systemctl disable的区别一般很难注意到，因为大部分时候只会使用systemctl disable，并不会用到systemctl mask。总体来看，disable和enable是一对操作，是用来启动、停止服务。mask和unmask是一对操作，用来屏蔽和取消屏蔽服务。">
 <meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2021-05-24T08:57:45.000Z">
+<meta property="article:modified_time" content="2021-05-24T09:30:36.344Z">
 <meta property="article:author" content="Lei">
+<meta property="article:tag" content="CentOS">
 <meta name="twitter:card" content="summary">
 
-<link rel="canonical" href="http://example.com/">
+<link rel="canonical" href="http://example.com/2021/05/24/systemctl-mask%E5%92%8Csystemctl-disable%E7%9A%84%E5%8C%BA%E5%88%AB/">
 
 
 <script id="page-configurations">
   // https://hexo.io/docs/variables.html
   CONFIG.page = {
     sidebar: "",
-    isHome : true,
-    isPost : false,
+    isHome : false,
+    isPost : true,
     lang   : 'zh-CN'
   };
 </script>
 
-  <title>Lei's Blog</title>
+  <title>systemctl mask和systemctl disable的区别 | Lei's Blog</title>
   
 
 
@@ -180,9 +183,10 @@
         <div class="content-wrap">
           
 
-          <div class="content index posts-expand">
+          <div class="content post posts-expand">
             
-      
+
+    
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
@@ -198,10 +202,9 @@
       <meta itemprop="name" content="Lei's Blog">
     </span>
       <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2021/05/24/systemctl-mask%E5%92%8Csystemctl-disable%E7%9A%84%E5%8C%BA%E5%88%AB/" class="post-title-link" itemprop="url">systemctl mask和systemctl disable的区别</a>
-        </h2>
+        <h1 class="post-title" itemprop="name headline">
+          systemctl mask和systemctl disable的区别
+        </h1>
 
         <div class="post-meta">
             <span class="post-meta-item">
@@ -248,119 +251,55 @@
     <div class="post-body" itemprop="articleBody">
 
       
-          <p>systemctl mask和systemctl disable的区别一般很难注意到，因为大部分时候只会使用systemctl disable，并不会用到systemctl mask。<br>总体来看，<br>disable和enable是一对操作，是用来启动、停止服务。<br>mask和unmask是一对操作，用来屏蔽和取消屏蔽服务。</p>
-          <!--noindex-->
-            <div class="post-button">
-              <a class="btn" href="/2021/05/24/systemctl-mask%E5%92%8Csystemctl-disable%E7%9A%84%E5%8C%BA%E5%88%AB/#more" rel="contents">
-                阅读全文 &raquo;
-              </a>
-            </div>
-          <!--/noindex-->
-        
-      
+        <p>systemctl mask和systemctl disable的区别一般很难注意到，因为大部分时候只会使用systemctl disable，并不会用到systemctl mask。<br>总体来看，<br>disable和enable是一对操作，是用来启动、停止服务。<br>mask和unmask是一对操作，用来屏蔽和取消屏蔽服务。</p>
+<span id="more"></span>
+<h2 id="systemctl-disable"><a href="#systemctl-disable" class="headerlink" title="systemctl disable"></a>systemctl disable</h2><p>在系统中安装了某个服务以后，需要将该服务设置为开机自启，那么一般会执行systemctl enable xxx，这个时候会发现shell中会输出两行提示，一般类似如下：</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">[root<span class="variable">@NameNode01</span> <span class="keyword">system</span>]# systemctl enable NetworkManager </span><br><span class="line">Created symlink <span class="keyword">from</span> <span class="operator">/</span>etc<span class="operator">/</span>systemd<span class="operator">/</span><span class="keyword">system</span><span class="operator">/</span>multi<span class="operator">-</span>user.target.wants<span class="operator">/</span>NetworkManager.service <span class="keyword">to</span> <span class="operator">/</span>usr<span class="operator">/</span>lib<span class="operator">/</span>systemd<span class="operator">/</span><span class="keyword">system</span><span class="operator">/</span>NetworkManager.service.</span><br><span class="line">Created symlink <span class="keyword">from</span> <span class="operator">/</span>etc<span class="operator">/</span>systemd<span class="operator">/</span><span class="keyword">system</span><span class="operator">/</span>dbus<span class="operator">-</span>org.freedesktop.nm<span class="operator">-</span>dispatcher.service <span class="keyword">to</span> <span class="operator">/</span>usr<span class="operator">/</span>lib<span class="operator">/</span>systemd<span class="operator">/</span><span class="keyword">system</span><span class="operator">/</span>NetworkManager<span class="operator">-</span>dispatcher.service.</span><br><span class="line">Created symlink <span class="keyword">from</span> <span class="operator">/</span>etc<span class="operator">/</span>systemd<span class="operator">/</span><span class="keyword">system</span><span class="operator">/</span>network<span class="operator">-</span>online.target.wants<span class="operator">/</span>NetworkManager<span class="operator">-</span>wait<span class="operator">-</span>online.service <span class="keyword">to</span> <span class="operator">/</span>usr<span class="operator">/</span>lib<span class="operator">/</span>systemd<span class="operator">/</span><span class="keyword">system</span><span class="operator">/</span>NetworkManager<span class="operator">-</span>wait<span class="operator">-</span>online.service.</span><br></pre></td></tr></table></figure>
+
+<p>这个命令会在/etc/systemd/system/目录下创建需要的符号链接，表示服务需要进行启动。通过stdout输出的信息可以看到，软连接实际指向的文件为/usr/lib/systemd/system/目录中的文件，实际起作用的也是这个目录中的文件。</p>
+<p>执行systemctl disable xxx后，会禁用这个服务。它实现的方法是将服务对应的软连接从/etc/systemd/system中删除。命令执行情况一般类似如下：</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">[root<span class="variable">@NameNode01</span> <span class="keyword">system</span>]# systemctl disable NetworkManager</span><br><span class="line">Removed symlink <span class="operator">/</span>etc<span class="operator">/</span>systemd<span class="operator">/</span><span class="keyword">system</span><span class="operator">/</span>multi<span class="operator">-</span>user.target.wants<span class="operator">/</span>NetworkManager.service.</span><br><span class="line">Removed symlink <span class="operator">/</span>etc<span class="operator">/</span>systemd<span class="operator">/</span><span class="keyword">system</span><span class="operator">/</span>dbus<span class="operator">-</span>org.freedesktop.NetworkManager.service.</span><br><span class="line">Removed symlink <span class="operator">/</span>etc<span class="operator">/</span>systemd<span class="operator">/</span><span class="keyword">system</span><span class="operator">/</span>dbus<span class="operator">-</span>org.freedesktop.nm<span class="operator">-</span>dispatcher.service.</span><br><span class="line">Removed symlink <span class="operator">/</span>etc<span class="operator">/</span>systemd<span class="operator">/</span><span class="keyword">system</span><span class="operator">/</span>network<span class="operator">-</span>online.target.wants<span class="operator">/</span>NetworkManager<span class="operator">-</span>wait<span class="operator">-</span>online.service.</span><br></pre></td></tr></table></figure>
+
+<p>在执行systemctl disable xxx的时候，实际只是删除了软连接，并不会产生其他影响。</p>
+<h2 id="systemctl-mask"><a href="#systemctl-mask" class="headerlink" title="systemctl mask"></a>systemctl mask</h2><p>执行 systemctl mask xxx会屏蔽这个服务。它和systemctl disable xxx的区别在于，前者只是删除了符号链接，后者会建立一个指向/dev/null的符号链接，这样，即使有其他服务要启动被mask的服务，仍然无法执行成功。执行该命令的效果一般类似如下：</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">[root<span class="variable">@NameNode01</span> <span class="keyword">system</span>]# systemctl mask NetworkManager </span><br><span class="line">Created symlink <span class="keyword">from</span> <span class="operator">/</span>etc<span class="operator">/</span>systemd<span class="operator">/</span><span class="keyword">system</span><span class="operator">/</span>NetworkManager.service <span class="keyword">to</span> <span class="operator">/</span>dev<span class="operator">/</span>null.</span><br></pre></td></tr></table></figure>
+
+
+
+<h2 id="两者的区别"><a href="#两者的区别" class="headerlink" title="两者的区别"></a>两者的区别</h2><p>在执行过mask后，如果想要启动服务，那么会报类似如下错误：</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">[root<span class="variable">@NameNode01</span> <span class="keyword">system</span>]# systemctl <span class="keyword">start</span> NetworkManager</span><br><span class="line">Failed <span class="keyword">to</span> <span class="keyword">start</span> NetworkManager.service: Unit <span class="keyword">is</span> masked.</span><br></pre></td></tr></table></figure>
+
+<p>此时要想重新启动服务，必须先执行unmask将服务取消屏蔽。如果前面使用的是disable的话，则可以正常启动服务。</p>
+<p>总体来看，</p>
+<p>disable和enable是一对操作，是用来启动、停止服务。<br>mask和unmask是一对操作，用来屏蔽和取消屏蔽服务。</p>
+
     </div>
 
     
     
     
+
       <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
+          <div class="post-tags">
+              <a href="/tags/CentOS/" rel="tag"><i class="fa fa-tag"></i> CentOS</a>
+          </div>
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="http://example.com/2021/05/24/OpenStack%20Ussuri%E7%89%88%E5%AE%89%E8%A3%85%E8%BF%87%E7%A8%8B%E8%AE%B0%E5%BD%95/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar.png">
-      <meta itemprop="name" content="Lei">
-      <meta itemprop="description" content="备忘~">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Lei's Blog">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2021/05/24/OpenStack%20Ussuri%E7%89%88%E5%AE%89%E8%A3%85%E8%BF%87%E7%A8%8B%E8%AE%B0%E5%BD%95/" class="post-title-link" itemprop="url">OpenStack Ussuri版安装过程记录</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">发表于</span>
-              
-
-              <time title="创建时间：2021-05-24 15:08:07 / 修改时间：17:21:43" itemprop="dateCreated datePublished" datetime="2021-05-24T15:08:07+08:00">2021-05-24</time>
-            </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">分类于</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/%E8%BF%90%E7%BB%B4%E7%AC%94%E8%AE%B0/" itemprop="url" rel="index"><span itemprop="name">运维笔记</span></a>
-                </span>
-            </span>
-
-          
-            <span class="post-meta-item" title="本文字数">
-              <span class="post-meta-item-icon">
-                <i class="far fa-file-word"></i>
-              </span>
-                <span class="post-meta-item-text">本文字数：</span>
-              <span>3.4k</span>
-            </span>
-            <span class="post-meta-item" title="阅读时长">
-              <span class="post-meta-item-icon">
-                <i class="far fa-clock"></i>
-              </span>
-                <span class="post-meta-item-text">阅读时长 &asymp;</span>
-              <span>3 分钟</span>
-            </span>
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <p>安装OpenStack Ussuri版<br><img src="https://cdn.jsdelivr.net/gh/zl19940501/image_repository/img/%E6%A9%99%E5%AD%90%E8%83%8C%E6%99%AF%E5%9B%BE%E7%89%87%E5%A3%81%E7%BA%B8%20-%201.jpg"></p>
-          <!--noindex-->
-            <div class="post-button">
-              <a class="btn" href="/2021/05/24/OpenStack%20Ussuri%E7%89%88%E5%AE%89%E8%A3%85%E8%BF%87%E7%A8%8B%E8%AE%B0%E5%BD%95/#more" rel="contents">
-                阅读全文 &raquo;
-              </a>
-            </div>
-          <!--/noindex-->
         
-      
-    </div>
 
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2021/05/24/OpenStack%20Ussuri%E7%89%88%E5%AE%89%E8%A3%85%E8%BF%87%E7%A8%8B%E8%AE%B0%E5%BD%95/" rel="prev" title="OpenStack Ussuri版安装过程记录">
+      <i class="fa fa-chevron-left"></i> OpenStack Ussuri版安装过程记录
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
       </footer>
+    
   </article>
   
   
-  
-
-
   
 
 
@@ -413,6 +352,7 @@
 
       <!--noindex-->
       <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#systemctl-disable"><span class="nav-number">1.</span> <span class="nav-text">systemctl disable</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#systemctl-mask"><span class="nav-number">2.</span> <span class="nav-text">systemctl mask</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%B8%A4%E8%80%85%E7%9A%84%E5%8C%BA%E5%88%AB"><span class="nav-number">3.</span> <span class="nav-text">两者的区别</span></a></li></ol></div>
       </div>
       <!--/noindex-->
 
