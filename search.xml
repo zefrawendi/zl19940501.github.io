@@ -1,9 +1,150 @@
 <?xml version="1.0" encoding="utf-8"?>
 <search>
   <entry>
+    <title>CentOS7 firewalld 的相关配置</title>
+    <url>/2021/05/25/CentOS7%20firewalld%20%E7%9A%84%E7%9B%B8%E5%85%B3%E9%85%8D%E7%BD%AE/</url>
+    <content><![CDATA[<p>CentOS 7 firewalld 的相关配置<br><img src="https://cdn.jsdelivr.net/gh/zl19940501/image_repository/blog_img01/%E6%A9%99%E5%AD%90%E8%83%8C%E6%99%AF%E5%9B%BE%E7%89%87%E5%A3%81%E7%BA%B8%20-%204.jpg"></p>
+<span id="more"></span>
+
+<p>说明：在RHEL7系列中，默认使用firewalld作为防火墙，iptables默认是关闭的（stop），</p>
+<p>要使用firewalld建议先关闭并禁用老版本的iptables，ip6tables和ebtables。</p>
+<figure class="highlight puppet"><table><tr><td class="code"><pre><span class="line">systemctl <span class="keyword">stop</span> &#123;<span class="literal">ip</span>,eb,ip6&#125;<span class="keyword">tables</span>    #一般默认在RHEL7中是没有开启的</span><br><span class="line">systemctl <span class="keyword">mask</span> &#123;<span class="literal">ip</span>,eb,ip6&#125;<span class="keyword">tables</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">systemctl</span> <span class="keyword">start</span> <span class="keyword">firewalld</span></span><br><span class="line"><span class="keyword">systemctl</span> <span class="keyword">enable</span> <span class="keyword">firewalld</span></span><br><span class="line"><span class="keyword">systemctl</span> <span class="keyword">status</span> <span class="keyword">firewalld</span></span><br><span class="line">可以看到firewalld启动了</span><br></pre></td></tr></table></figure>
+
+<h2 id="1-区域zone概念"><a href="#1-区域zone概念" class="headerlink" title="1. 区域zone概念"></a>1. 区域zone概念</h2><p>　　在firewalld中引入了区域的概念，简单来说，区域就是firewalld预先准备了几套防火墙策略集合（策略模板），用户可以根据生产场景的不同而选择合适的策略集合，从而实现防火墙策略之间的快速切换。</p>
+<p><strong>有如下几种不同的初始化区域：</strong></p>
+<ul>
+<li>阻塞区域（block）：任何传入的网络数据包都将被阻止。</li>
+<li>工作区域（work）：相信网络上的其他计算机，不会损害你的计算机。</li>
+<li>家庭区域（home）：相信网络上的其他计算机，不会损害你的计算机。</li>
+<li>公共区域（public）：不相信网络上的任何计算机，只有选择接受传入的网络连接。</li>
+<li>隔离区域（DMZ）：隔离区域也称为非军事区域，内外网络之间增加的一层网络，起到缓冲作用。对于隔离区域，只有选择接受传入的网络连接。</li>
+<li>信任区域（trusted）：所有的网络连接都可以接受。</li>
+<li>丢弃区域（drop）：任何传入的网络连接都被拒绝。</li>
+<li>内部区域（internal）：信任网络上的其他计算机，不会损害你的计算机。只有选择接受传入的网络连接。</li>
+<li>外部区域（external）：不相信网络上的其他计算机，不会损害你的计算机。只有选择接受传入的网络连接。</li>
+</ul>
+<p>注：FirewallD的默认区域是public。</p>
+<h2 id="2-firewalld-服务基本使用"><a href="#2-firewalld-服务基本使用" class="headerlink" title="2. firewalld 服务基本使用"></a>2. firewalld 服务基本使用</h2><p>firewall 与 iptables 一样都是服务，所以可以使用 systemctl 服务管理工具来操作</p>
+<p>查看防火墙状态： <code>systemctl status firewalld</code></p>
+<p>关闭防火墙，停止 firewall 服务： <code>systemctl stop firewalld</code></p>
+<p>开启防火墙，启动 firewall 服务： <code>systemctl start firewalld</code></p>
+<p>重启防火墙，重启 firewall 服务： <code>systemctl restart firewalld</code></p>
+<p>查看 firewall 服务是否开机启动： <code>systemctl is-enabled firewalld</code></p>
+<p>开机时自动启动 firewall 服务： <code>systemctl enable firewalld.service</code></p>
+<p>开机时自动禁用 firewall 服务： <code>systemctl disable firewalld.service</code></p>
+<p>只有firewalld服务启动了，才能使用firewalld-cmd命令。</p>
+<p>firewalld有规则两种状态：</p>
+<p>运行时（runtime)：修改规则马上生效, 但是临时生效</p>
+<p>持久配置（permanent）： 修改后需要重载才会生效</p>
+<p>如果规则中没有加入参数：—permanent都是即时生效的，而且reload或者重启服务后都不会再有记录。<br>而加入了参数：—permanent后需要手动reload或者重启服务才生效。 同时可以加入—zone 应用于于哪个区域的参数。</p>
+<p>配置文件</p>
+<p>/etc/firewalld/{services, zones}/*.xml  优先级最高，permanent模式生效的策略会放到这里</p>
+<p>/lib/firewalld/{services, zones}/*.xml  优先级要低些，是一些默认配置，可以当做模板使用</p>
+<h2 id="3-firewalld-cmd-命令使用"><a href="#3-firewalld-cmd-命令使用" class="headerlink" title="3. firewalld-cmd 命令使用"></a>3. firewalld-cmd 命令使用</h2><h3 id="3-1-端口放行策略配置"><a href="#3-1-端口放行策略配置" class="headerlink" title="3.1 端口放行策略配置"></a>3.1 端口放行策略配置</h3><figure class="highlight jboss-cli"><table><tr><td class="code"><pre><span class="line"><span class="comment"># 开放单个端口</span></span><br><span class="line">$ firewall-cmd <span class="params">--zone=public</span> <span class="params">--add-port=80/tcp</span> <span class="params">--permanent</span>                     </span><br><span class="line"></span><br><span class="line"><span class="comment"># 开放端口范围</span></span><br><span class="line">$ firewall-cmd <span class="params">--zone=public</span> <span class="params">--add-port=8388-8389/tcp</span> <span class="params">--permanent</span>        </span><br><span class="line"></span><br><span class="line"><span class="comment"># 对 147.152.139.197 开放10000端口</span></span><br><span class="line">$ firewall-cmd <span class="params">--permanent</span> <span class="params">--zone=public</span> <span class="params">--add-rich-rule=</span>&#x27;</span><br><span class="line">        rule family=<span class="string">&quot;ipv4&quot;</span></span><br><span class="line">        source address=<span class="string">&quot;147.152.139.197/32&quot;</span></span><br><span class="line">        port protocol=<span class="string">&quot;tcp&quot;</span> port=<span class="string">&quot;10000&quot;</span> accept&#x27;       </span><br><span class="line">        </span><br><span class="line"><span class="comment"># 拒绝端口：</span></span><br><span class="line">$ firewall-cmd <span class="params">--permanent</span> <span class="params">--zone=public</span> <span class="params">--add-rich-rule=</span>&#x27;</span><br><span class="line">              rule family=<span class="string">&quot;ipv4&quot;</span></span><br><span class="line">              source address=<span class="string">&quot;47.52.39.197/32&quot;</span></span><br><span class="line">              port protocol=<span class="string">&quot;tcp&quot;</span> port=<span class="string">&quot;10000&quot;</span> reject&#x27;  </span><br><span class="line"></span><br><span class="line"><span class="comment"># 开放全部端口给IP</span></span><br><span class="line">$ firewall-cmd <span class="params">--permanent</span> <span class="params">--zone=public</span> <span class="params">--add-rich-rule=</span>&#x27;</span><br><span class="line">              rule family=<span class="string">&quot;ipv4&quot;</span></span><br><span class="line">              source address=<span class="string">&quot;192.168.0.1/32&quot;</span> accept&#x27;;</span><br><span class="line"></span><br><span class="line"><span class="comment"># 开放全部端口给网段</span></span><br><span class="line">$ firewall-cmd <span class="params">--permanent</span> <span class="params">--zone=public</span> <span class="params">--add-rich-rule=</span>&#x27;</span><br><span class="line">              rule family=<span class="string">&quot;ipv4&quot;</span></span><br><span class="line">              source address=<span class="string">&quot;192.168.0.0/16&quot;</span> accept&#x27;;</span><br></pre></td></tr></table></figure>
+
+<h3 id="3-2-firewalld的NAT和端口转发"><a href="#3-2-firewalld的NAT和端口转发" class="headerlink" title="3.2 firewalld的NAT和端口转发"></a>3.2 firewalld的NAT和端口转发</h3><p>1）网络地址转换（NAT）</p>
+<p>　　firewalld支持两种类型的网络地址转换(NAT) 伪装和端口转发。可以在基本级别使用常规</p>
+<p>　　frewall-cmd规则来同时配置这两者，更高级的转发配置可以使用富规则来完成。</p>
+<p>　　这两种形式的NAT会在发送包之前修改包的某些方面如源或目标。<br>2）伪装（注意：伪装只能和ipv4一起用，ipv6不行）</p>
+<p>　　通过伪装系统会将并非直接寻址到自身的包转发到指定接收方同时将通过的包的源地址更改为其自己的公共TP地址。</p>
+<p>防火墙对这些传入的包应答时会将目标地址修改为原始主机的地址并发送包。这通常在网络边缘上使用以便为内部网络提供Internet访问。</p>
+<p>伪装是一种形式的网络地址转换（NAT）</p>
+<p>3）配置伪装</p>
+<p>要使用常规的firewall-cmd命令为区域配置伪装，使用下列语法：</p>
+<figure class="highlight brainfuck"><table><tr><td class="code"><pre><span class="line"><span class="comment">firewall</span><span class="literal">-</span><span class="comment">cmd</span> --<span class="comment">permanent</span> --<span class="comment">zone=</span>&lt;<span class="comment">ZONE</span>&gt; --<span class="comment">add</span><span class="literal">-</span><span class="comment">masquerade</span></span><br></pre></td></tr></table></figure>
+
+<p>这将伪装满足以下条件的任何包从该区域的源（接口及子网）中定义的客户端发送到防火墙且未寻址到防火墙自身的包，即该区域源的数据包的目标IP不是防火墙自身的IP，都将映射成防火墙的IP。</p>
+<p>要在更大程度上控制要进行伪装的客户端, 还可以使用富规则。</p>
+<figure class="highlight nix"><table><tr><td class="code"><pre><span class="line">firewall-cmd --permanent <span class="attr">--zone=&lt;ZONE&gt;</span> <span class="attr">--add-rich-rule=&#x27;rule</span> <span class="attr">family=ipv4</span> source <span class="attr">address=192.168.0.0/24</span> masquerade&#x27; </span><br></pre></td></tr></table></figure>
+
+<p>4）端口转发</p>
+<p>另一种形式的NAT是端口转发。</p>
+<p>通过端口转发指向单个端口的流量将转发到相同计算机上的不同端口或者转发到不同计算机上的端口。</p>
+<p>此机制通常用于将某个服务器隐藏在另一个计算机后面，或者用于在备用端口上提供对服务的访问权限。</p>
+<p>重要：</p>
+<p>　　当端口转发配置为将包转发到不同计算机时，从该计算机的任何回复通常将直接从该计算机发送到原始客户端。</p>
+<p>这将在大部分配置上导致无效连接，因此转发到的计算机必须通过执行端口转发的防火墙来进行伪装。</p>
+<p>常见配置是将端口从防火墙计算机转发到已在防火墙后面伪装的计算机，即这种通过目标端口转发的方式需要开启伪装（masquerade）</p>
+<p>要使用常规fircwall-cmd命令配置端口转发，可以使用firewalld提供的端口转发语法：</p>
+<figure class="highlight elixir"><table><tr><td class="code"><pre><span class="line">firewall-cmd --permanent --zone=&lt;ZONE&gt; --add-forward-port=port=&lt;PORTNUMBER&gt;<span class="symbol">:proto=&lt;PROTOCOL&gt;</span>[<span class="symbol">:toport=&lt;PORTNUMBER&gt;</span>][<span class="symbol">:toaddr=&lt;IPADDR&gt;</span>]</span><br></pre></td></tr></table></figure>
+
+<p>toport=和toaddr 两部分均可选，但需要至少指定这两者之一 。</p>
+<figure class="highlight elixir"><table><tr><td class="code"><pre><span class="line">例如， 对于来自public区域的客户端，以下命令会将防火墙上通过端口<span class="number">513</span>/TCP传入的连接转发到IP地址为<span class="number">192.168</span>.0.<span class="number">254</span>的计算机上的端口<span class="number">132</span>/TCP</span><br><span class="line"></span><br><span class="line">frewall-cmd --permanent --zone=public --add-forward­port=port=<span class="number">513</span><span class="symbol">:proto=tcp</span><span class="symbol">:toport=</span><span class="number">132</span><span class="symbol">:toaddr=</span><span class="number">192.168</span>.0.<span class="number">254</span></span><br></pre></td></tr></table></figure>
+
+<p>要在更大程度上控制端口转发规则，可以将以下语法与富规则配合使用来实现端口转发，这也是我们推荐使用的方式</p>
+<figure class="highlight routeros"><table><tr><td class="code"><pre><span class="line">forward-port <span class="attribute">port</span>=&lt;PORTNUM&gt; <span class="attribute">protocol</span>=tcp|udp [<span class="attribute">to-port</span>=&lt;PORTNUM&gt;] [<span class="attribute">to-addr</span>=&lt;ADDRESS&gt;]</span><br></pre></td></tr></table></figure>
+
+<p>以下示例使用富规则将来自work区域中192.168.0.0/4且传入到端口80/TCP的流星转发到防火墙计算机自身上面的和端口8080/TCP:</p>
+<figure class="highlight nix"><table><tr><td class="code"><pre><span class="line">firewall-cmd --permanent <span class="attr">--zone=work</span> <span class="attr">--add-rich-rule=&#x27;rule</span> <span class="attr">family=ipv4</span> source <span class="attr">address=l92.168.0.0/24</span> forward-port <span class="attr">port=80</span> <span class="attr">protocol=tcp</span> <span class="attr">to-port=8080&#x27;</span> </span><br></pre></td></tr></table></figure>
+
+<p>其实这里是指传统的目标地址映射，实现外网访问内网资源</p>
+<figure class="highlight nix"><table><tr><td class="code"><pre><span class="line">firewall-cmd <span class="attr">--zone=external</span> --add-masquerade</span><br><span class="line">firewall-cmd --permanent <span class="attr">--zone=public</span> <span class="attr">--add-forward-port=port=513:proto=tcp:toport=132:toaddr=192.168.0.254</span></span><br><span class="line">firewall-cmd --permanent <span class="attr">--zone=public</span> <span class="attr">--add-rich-rule=&#x27;rule</span> <span class="attr">family=ipv4</span> source <span class="attr">address=192.168.0.0/24</span> forward-port <span class="attr">port=80</span> <span class="attr">protocol=tcp</span> <span class="attr">to-port=8080&#x27;</span></span><br></pre></td></tr></table></figure>
+
+<p>例子：</p>
+<p>把来自172.25.0.10/32并且访问的端口为tcp的443端口的数据包进行端口转发，转发到本机的tcp的22端口</p>
+<figure class="highlight nix"><table><tr><td class="code"><pre><span class="line">firewall-cmd --permanent <span class="attr">--add-rich-rule=&#x27;rule</span> <span class="attr">family=ipv4</span> source <span class="attr">address=172.25.0.10/32</span> forward-port <span class="attr">port=443</span> <span class="attr">protocol=tcp</span> <span class="attr">to-port=22&#x27;</span></span><br><span class="line"></span><br><span class="line">firewall-cmd --reload</span><br></pre></td></tr></table></figure>
+
+<p>本地端口转发：</p>
+<figure class="highlight nix"><table><tr><td class="code"><pre><span class="line">firewall-cmd <span class="attr">--add-rich-rule=&#x27;rule</span> <span class="attr">family=ipv4</span> source <span class="attr">address=172.25.0.10/32</span> forward-port <span class="attr">port=80</span> <span class="attr">to-port=22</span> <span class="attr">protocol=tcp&#x27;</span></span><br></pre></td></tr></table></figure>
+
+<p> 目标地址转发：</p>
+<figure class="highlight nix"><table><tr><td class="code"><pre><span class="line">firewall-cmd <span class="attr">--add-rich-rule=&#x27;rule</span> <span class="attr">family=ipv4</span> source <span class="attr">address=172.25.0.10/32</span> forward-port <span class="attr">port=80</span> <span class="attr">to-port=80</span> <span class="attr">protocol=tcp</span> <span class="attr">to-addr=172.25.0.254&#x27;</span></span><br></pre></td></tr></table></figure>
+
+<p> 一键断网</p>
+<figure class="highlight ada"><table><tr><td class="code"><pre><span class="line">firewall-cmd <span class="comment">--panic-off</span></span><br><span class="line"></span><br><span class="line">firewall-cmd <span class="comment">--panic-on</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="3-3-使用富规则进行日志记录"><a href="#3-3-使用富规则进行日志记录" class="headerlink" title="3.3 使用富规则进行日志记录"></a>3.3 使用富规则进行日志记录</h3><p>调试或监控防火墙时，记录巳接受或巳拒绝的连接很有用。</p>
+<p>firewalld可以通过两种方法来实现此目的记录到syslog, 或者将消息发送到由auditd管理的内核audit子系统。</p>
+<figure class="highlight pgsql"><table><tr><td class="code"><pre><span class="line">使用富规则记录到syslog的基本语法为：</span><br><span class="line"></span><br><span class="line"><span class="keyword">log</span> [prefix=&quot;&lt;PREFIX TEXT&gt;&quot; [<span class="keyword">level</span>=&lt;LOGLEVEL&gt;] [<span class="keyword">limit</span> <span class="keyword">value</span>=&quot;&lt;RATE/DURATION&gt;&quot;]</span><br><span class="line"></span><br><span class="line">其中：</span><br><span class="line"></span><br><span class="line">&lt;LOGLEVEL&gt; 可以是emerg 、 alert 、 crit 、 error 、 <span class="built_in">warning</span> 、 <span class="keyword">notice</span> 、 <span class="keyword">info</span>或<span class="keyword">debug</span>之一。</span><br><span class="line"></span><br><span class="line">&lt;RATE/DURATION&gt;&quot; 可以是s(表示秒）、m(表示分钟）、h(表示小时）或d(表示天）之一。</span><br><span class="line"></span><br><span class="line">例如：limit value=3/m会将日志消息限制为每分钟最多三条。</span><br><span class="line"></span><br><span class="line">limit value = 3/m 这里是有BUG 的，常常时间控制会不精准。</span><br><span class="line"></span><br><span class="line">针对ssh 链接记录至日志中，每分钟3次</span><br><span class="line">firewall-cmd --permanent --zone=work --add-rich-rule=&#x27;rule service name=ssh log prefix=&quot;ssh &quot; level=notice limit value=&quot;<span class="number">3</span>/m&quot; accept&#x27;</span><br><span class="line"></span><br><span class="line">添加富规则，只允许172.25.0.10/32访问，并且记录日志，日志级别为notice,日志前缀为&quot;<span class="built_in">NEW</span> HTTP &quot;,限制每秒最多3个并发 ，要求持久化生效</span><br><span class="line">firewall-cmd --permanent --add-rich-rule=&#x27;rule family=ipv4 source address=172.25.0.10/32 service name=http log level=notice prefix=&quot;<span class="built_in">NEW</span> HTTP &quot; limit value=&quot;<span class="number">3</span>/s&quot; accept&#x27; </span><br><span class="line"></span><br><span class="line">接受从work区域到SSH的新连接， 以notice级别且每分钟最多三条消息的方式将新连接记录 到syslog。</span><br><span class="line">firewall-cmd --permanent --zone=work --add-rich-rule=&#x27;rule service name=&quot;ssh&quot; log prefix=&quot;ssh&quot; level=&quot;<span class="keyword">notice</span>&quot; limit va1ue=&quot;<span class="number">3</span>/m&quot; accept</span><br><span class="line"></span><br><span class="line">用于记录到审计子系统的基本语法为：</span><br><span class="line">audit [limit value=&quot;&lt;RATE/DURATION&gt;&quot;]</span><br><span class="line">速率限制的配置方式与syslog记录相同。</span><br><span class="line"></span><br><span class="line">使用富规则进行记录的某些示例：</span><br><span class="line">用于调试，规则在300秒后失效，将拒绝从默认区域中子网2001: db8: : /64到DNS的新IPv6连接，</span><br><span class="line">并且拒绝的连接将记录到audit系统，且每小时最多一条消息。</span><br><span class="line">firewall-crud --add-rich-rule=&#x27;rule family=ipv6 source address=&quot;<span class="number">2001</span> :db8: :/<span class="number">64</span>&quot; service name=&quot; dns&quot; audit limit va1ue=&quot; <span class="number">1</span>/h&quot; reject&#x27;--timeout=300</span><br></pre></td></tr></table></figure>
+
+<h2 id="4-firewalld的一些实用操作"><a href="#4-firewalld的一些实用操作" class="headerlink" title="4. firewalld的一些实用操作"></a>4. firewalld的一些实用操作</h2><p>规则重载</p>
+<figure class="highlight jboss-cli"><table><tr><td class="code"><pre><span class="line">firewall-cmd <span class="params">--reload</span></span><br><span class="line"></span><br><span class="line">firewall-cmd <span class="params">--complete-reload</span></span><br><span class="line"></span><br><span class="line">两者都会重新会加载内核中的防火墙模块和配置文件，但是firewall-cmd <span class="params">--complete-reload</span>不会维持当前连接信息。比如，用ssh22登陆，如果不小心把ssh 22关掉了，用<span class="keyword">reload</span>不会把当前的连接杀死。但是用 <span class="params">--complete-reload</span>，那么恭喜，成功的把自己关在外面了</span><br></pre></td></tr></table></figure>
+
+<p>应急命令（一键断网）</p>
+<figure class="highlight dockerfile"><table><tr><td class="code"><pre><span class="line">firewall-<span class="keyword">cmd</span><span class="bash"> --panic-on           <span class="comment">#拒绝所有流量，远程连接会立即断开，只有本地能登陆</span></span></span><br><span class="line"></span><br><span class="line">firewall-<span class="keyword">cmd</span><span class="bash"> --panic-off          <span class="comment">#取消应急模式，但需要重启firewalld后才可以远程ssh</span></span></span><br><span class="line"></span><br><span class="line">firewall-<span class="keyword">cmd</span><span class="bash"> --query-panic        <span class="comment">#查看是否为应急模式</span></span></span><br></pre></td></tr></table></figure>
+
+<p>添加服务和端口以及协议</p>
+<figure class="highlight dockerfile"><table><tr><td class="code"><pre><span class="line">firewall-<span class="keyword">cmd</span><span class="bash"> --add-service=&lt;service name&gt; 　　　　　　<span class="comment">#添加服务</span></span></span><br><span class="line"></span><br><span class="line">firewall-<span class="keyword">cmd</span><span class="bash"> --remove-service=&lt;service name&gt; 　　　　<span class="comment">#移除服务</span></span></span><br><span class="line"></span><br><span class="line">firewall-<span class="keyword">cmd</span><span class="bash"> --add-port=&lt;port&gt;/&lt;protocol&gt;           <span class="comment">#添加端口/协议（TCP/UDP）</span></span></span><br><span class="line"></span><br><span class="line">firewall-<span class="keyword">cmd</span><span class="bash"> --remove-port=&lt;port&gt;/&lt;protocol&gt;  　　   <span class="comment">#移除端口/协议（TCP/UDP）</span></span></span><br><span class="line"></span><br><span class="line">firewall-<span class="keyword">cmd</span><span class="bash"> --list-ports 　　　　　　　　　　　　　　　　<span class="comment">#查看开放的端口</span></span></span><br><span class="line"></span><br><span class="line"> </span><br><span class="line">firewall-<span class="keyword">cmd</span><span class="bash"> --add-protocol=&lt;protocol&gt;      　　　　  <span class="comment">#允许协议 (例：icmp，即允许ping)</span></span></span><br><span class="line"></span><br><span class="line">firewall-<span class="keyword">cmd</span><span class="bash"> --remove-protocol=&lt;protocol&gt; 　　　　　　 <span class="comment">#取消协议</span></span></span><br><span class="line"></span><br><span class="line">firewall-<span class="keyword">cmd</span><span class="bash"> --list-protocols                        <span class="comment">#查看允许的协议</span></span></span><br></pre></td></tr></table></figure>
+
+<p>指定某IP或网段的流量通过</p>
+<figure class="highlight apache"><table><tr><td class="code"><pre><span class="line"><span class="attribute">firewall</span>-cmd --add-rich-rule=<span class="string">&quot;rule family=&quot;</span>ipv<span class="number">4</span><span class="string">&quot; source address=&quot;</span>&lt;ip/netmask&gt;<span class="string">&quot; accept&quot;</span></span><br><span class="line"></span><br><span class="line"><span class="comment">#允许来自192.168.2.1的所有流量</span></span><br><span class="line"><span class="attribute">firewall</span>-cmd --add-rich-rule=<span class="string">&quot;rule family=&quot;</span>ipv<span class="number">4</span><span class="string">&quot; source address=&quot;</span><span class="number">192.168.2.1</span><span class="string">&quot; accept&quot;</span> </span><br></pre></td></tr></table></figure>
+
+<p>指定IP时指定协议</p>
+<figure class="highlight routeros"><table><tr><td class="code"><pre><span class="line">firewall-cmd <span class="attribute">--add-rich-rule</span>=<span class="string">&quot;rule family=&quot;</span>ipv4&quot; source <span class="attribute">address</span>=<span class="string">&quot;&lt;ip&gt;&quot;</span> protocol <span class="attribute">value</span>=<span class="string">&quot;&lt;protocol&gt;&quot;</span> accept<span class="string">&quot;</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">#允许192.168.2.208主机的icmp协议，即允许192.168.2.208主机ping</span></span><br><span class="line"><span class="string">firewall-cmd --add-rich-rule=&quot;</span>rule <span class="attribute">family</span>=<span class="string">&quot;ipv4&quot;</span> source <span class="attribute">address</span>=<span class="string">&quot;192.168.2.208&quot;</span> protocol <span class="attribute">value</span>=<span class="string">&quot;icmp&quot;</span> accept<span class="string">&quot; 　　</span></span><br></pre></td></tr></table></figure>
+
+<p>允许指定ip访问指定服务</p>
+<figure class="highlight routeros"><table><tr><td class="code"><pre><span class="line">firewall-cmd <span class="attribute">--add-rich-rule</span>=<span class="string">&quot;rule family=&quot;</span>ipv4&quot; source <span class="attribute">address</span>=<span class="string">&quot;&lt;ip&gt;&quot;</span><span class="built_in"> service </span><span class="attribute">name</span>=<span class="string">&quot;&lt;service name&gt;&quot;</span> accept<span class="string">&quot;</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">#允许192.168.2.208主机访问ssh服务</span></span><br><span class="line"><span class="string">firewall-cmd --add-rich-rule=&quot;</span>rule <span class="attribute">family</span>=<span class="string">&quot;ipv4&quot;</span> source <span class="attribute">address</span>=<span class="string">&quot;192.168.2.208&quot;</span><span class="built_in"> service </span><span class="attribute">name</span>=<span class="string">&quot;ssh&quot;</span> accept<span class="string">&quot;</span></span><br><span class="line"><span class="string">　　　　 </span></span><br></pre></td></tr></table></figure>
+
+<p>允许指定ip访问指定端口</p>
+<figure class="highlight routeros"><table><tr><td class="code"><pre><span class="line">firewall-cmd <span class="attribute">--add-rich-rule</span>=<span class="string">&quot;rule family=&quot;</span>ipv4&quot; source <span class="attribute">address</span>=<span class="string">&quot;&lt;ip&gt;&quot;</span><span class="built_in"> port </span><span class="attribute">protocol</span>=<span class="string">&quot;&lt;port protocol&gt;&quot;</span> <span class="attribute">port</span>=<span class="string">&quot;&lt;port&gt;&quot;</span> accept<span class="string">&quot;</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">#允许192.168.2.1主机访问22端口</span></span><br><span class="line"><span class="string">firewall-cmd --add-rich-rule=&quot;</span>rule <span class="attribute">family</span>=<span class="string">&quot;ipv4&quot;</span> source <span class="attribute">address</span>=<span class="string">&quot;192.168.2.1&quot;</span><span class="built_in"> port </span><span class="attribute">protocol</span>=<span class="string">&quot;tcp&quot;</span> <span class="attribute">port</span>=<span class="string">&quot;22&quot;</span> accept<span class="string">&quot;　</span></span><br></pre></td></tr></table></figure>
+
+<p>禁止IP和网段</p>
+<figure class="highlight routeros"><table><tr><td class="code"><pre><span class="line"><span class="comment">#禁止192.168.2.0/24网段的主机访问22端口</span></span><br><span class="line">firewall-cmd <span class="attribute">--zone</span>=drop <span class="attribute">--add-rich-rule</span>=<span class="string">&quot;rule family=&quot;</span>ipv4&quot; source <span class="attribute">address</span>=<span class="string">&quot;192.168.2.0/24&quot;</span><span class="built_in"> port </span><span class="attribute">protocol</span>=<span class="string">&quot;tcp&quot;</span> <span class="attribute">port</span>=<span class="string">&quot;22&quot;</span> reject<span class="string">&quot;</span></span><br></pre></td></tr></table></figure>
+
+<p> 本地端口转发：</p>
+<figure class="highlight nix"><table><tr><td class="code"><pre><span class="line">firewall-cmd <span class="attr">--add-rich-rule=&#x27;rule</span> <span class="attr">family=ipv4</span> source <span class="attr">address=172.25.0.10/32</span> forward-port <span class="attr">port=80</span> <span class="attr">to-port=22</span> <span class="attr">protocol=tcp</span> accept&#x27;</span><br></pre></td></tr></table></figure>
+
+<p>目标地址转发：</p>
+<figure class="highlight nix"><table><tr><td class="code"><pre><span class="line">firewall-cmd --permanent --add-masquerade</span><br><span class="line">firewall-cmd <span class="attr">--add-rich-rule=&#x27;rule</span> <span class="attr">family=ipv4</span> source <span class="attr">address=172.25.0.10/32</span> forward-port <span class="attr">port=80</span> <span class="attr">to-port=80</span> <span class="attr">protocol=tcp</span> <span class="attr">to-addr=172.25.0.254</span> accept&#x27;</span><br></pre></td></tr></table></figure>
+
+<p>要使用常规的firewall-cmd命令为区域配置伪装，使用下列语法：</p>
+<figure class="highlight brainfuck"><table><tr><td class="code"><pre><span class="line"><span class="comment">firewall</span><span class="literal">-</span><span class="comment">cmd</span> --<span class="comment">permanent</span> --<span class="comment">zone=</span>&lt;<span class="comment">ZONE</span>&gt; --<span class="comment">add</span><span class="literal">-</span><span class="comment">masquerade</span></span><br></pre></td></tr></table></figure>
+
+<p>这将伪装满足以下条件的任何包从该区域的源（接口及子网）中定义的客户端发送到防火墙且未寻址到防火墙自身的包，即该区域源的数据包的目标IP不是防火墙自身的IP，都将映射成防火墙的IP。</p>
+<p>要在更大程度上控制要进行伪装的客户端, 还可以使用富规则。</p>
+<figure class="highlight nix"><table><tr><td class="code"><pre><span class="line">firewall-cmd --permanent <span class="attr">--zone=&lt;ZONE&gt;</span> <span class="attr">--add-rich-rule=&#x27;rule</span> <span class="attr">family=ipv4</span> source <span class="attr">address=192.168.0.0/24</span> masquerade&#x27;</span><br></pre></td></tr></table></figure>
+]]></content>
+      <categories>
+        <category>运维笔记</category>
+      </categories>
+      <tags>
+        <tag>CentOS</tag>
+      </tags>
+  </entry>
+  <entry>
     <title>systemctl mask和systemctl disable的区别</title>
     <url>/2021/05/24/systemctl-mask%E5%92%8Csystemctl-disable%E7%9A%84%E5%8C%BA%E5%88%AB/</url>
-    <content><![CDATA[<p>systemctl mask和systemctl disable的区别一般很难注意到，因为大部分时候只会使用systemctl disable，并不会用到systemctl mask。<br>总体来看，<br>disable和enable是一对操作，是用来启动、停止服务。<br>mask和unmask是一对操作，用来屏蔽和取消屏蔽服务。</p>
+    <content><![CDATA[<p>systemctl mask和systemctl disable的区别一般很难注意到，因为大部分时候只会使用systemctl disable，并不会用到systemctl mask。<br>总体来看，<br>disable和enable是一对操作，是用来启动、停止服务。<br>mask和unmask是一对操作，用来屏蔽和取消屏蔽服务。<br><img src="https://cdn.jsdelivr.net/gh/zl19940501/image_repository/blog_img01/%E6%A9%99%E5%AD%90%E8%83%8C%E6%99%AF%E5%9B%BE%E7%89%87%E5%A3%81%E7%BA%B8%20-%206.jpg"></p>
 <span id="more"></span>
 <h2 id="systemctl-disable"><a href="#systemctl-disable" class="headerlink" title="systemctl disable"></a>systemctl disable</h2><p>在系统中安装了某个服务以后，需要将该服务设置为开机自启，那么一般会执行systemctl enable xxx，这个时候会发现shell中会输出两行提示，一般类似如下：</p>
 <figure class="highlight sql"><table><tr><td class="code"><pre><span class="line">[root<span class="variable">@NameNode01</span> <span class="keyword">system</span>]# systemctl enable NetworkManager </span><br><span class="line">Created symlink <span class="keyword">from</span> <span class="operator">/</span>etc<span class="operator">/</span>systemd<span class="operator">/</span><span class="keyword">system</span><span class="operator">/</span>multi<span class="operator">-</span>user.target.wants<span class="operator">/</span>NetworkManager.service <span class="keyword">to</span> <span class="operator">/</span>usr<span class="operator">/</span>lib<span class="operator">/</span>systemd<span class="operator">/</span><span class="keyword">system</span><span class="operator">/</span>NetworkManager.service.</span><br><span class="line">Created symlink <span class="keyword">from</span> <span class="operator">/</span>etc<span class="operator">/</span>systemd<span class="operator">/</span><span class="keyword">system</span><span class="operator">/</span>dbus<span class="operator">-</span>org.freedesktop.nm<span class="operator">-</span>dispatcher.service <span class="keyword">to</span> <span class="operator">/</span>usr<span class="operator">/</span>lib<span class="operator">/</span>systemd<span class="operator">/</span><span class="keyword">system</span><span class="operator">/</span>NetworkManager<span class="operator">-</span>dispatcher.service.</span><br><span class="line">Created symlink <span class="keyword">from</span> <span class="operator">/</span>etc<span class="operator">/</span>systemd<span class="operator">/</span><span class="keyword">system</span><span class="operator">/</span>network<span class="operator">-</span>online.target.wants<span class="operator">/</span>NetworkManager<span class="operator">-</span>wait<span class="operator">-</span>online.service <span class="keyword">to</span> <span class="operator">/</span>usr<span class="operator">/</span>lib<span class="operator">/</span>systemd<span class="operator">/</span><span class="keyword">system</span><span class="operator">/</span>NetworkManager<span class="operator">-</span>wait<span class="operator">-</span>online.service.</span><br></pre></td></tr></table></figure>
